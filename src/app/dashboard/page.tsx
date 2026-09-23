@@ -1,9 +1,13 @@
-import { auth, signOut } from "@/auth";
+import { logoutUser } from "@/app/actions/auth";
 import { Button } from "@/components/ui/button";
+import { auth } from "@/lib/auth";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 export default async function DashboardPage() {
-  const session = await auth();
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
 
   if (!session?.user) {
     redirect("/");
@@ -20,12 +24,16 @@ export default async function DashboardPage() {
             </p>
           </div>
           <form
-            action={async () => {
+            className="cursor-pointer"
+            onSubmit={async () => {
               "use server";
-              await signOut();
+              await logoutUser();
+              redirect("/");
             }}
           >
-            <Button variant="outline">Sign Out</Button>
+            <Button variant="outline" type="submit">
+              Sign Out
+            </Button>
           </form>
         </div>
 
