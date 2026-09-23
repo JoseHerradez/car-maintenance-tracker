@@ -1,6 +1,6 @@
 "use client";
 
-import { loginUser } from "@/app/actions/auth";
+import { registerUser } from "@/app/actions/auth";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LoginFormData, loginSchema } from "@/lib/validations/auth";
+import { RegisterFormData, registerSchema } from "@/lib/validations/auth";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Car } from "lucide-react";
 import Link from "next/link";
@@ -20,7 +20,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 
-export default function LoginPage() {
+export default function RegisterPage() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -29,19 +29,21 @@ export default function LoginPage() {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<LoginFormData>({
-    resolver: zodResolver(loginSchema),
+  } = useForm<RegisterFormData>({
+    resolver: zodResolver(registerSchema),
   });
 
-  const onSubmit = async (data: LoginFormData) => {
+  const onSubmit = async (data: RegisterFormData) => {
     setIsLoading(true);
     setError(null);
 
     const formData = new FormData();
+    formData.append("name", data.name);
     formData.append("email", data.email);
     formData.append("password", data.password);
+    formData.append("confirmPassword", data.confirmPassword);
 
-    const result = await loginUser(formData);
+    const result = await registerUser(formData);
 
     if (result.error) {
       setError(result.error);
@@ -58,9 +60,9 @@ export default function LoginPage() {
           <div className="mx-auto w-12 h-12 bg-primary rounded-full flex items-center justify-center">
             <Car className="w-6 h-6 text-primary-foreground" />
           </div>
-          <CardTitle className="text-2xl font-bold">Welcome Back</CardTitle>
+          <CardTitle className="text-2xl font-bold">Create Account</CardTitle>
           <CardDescription>
-            Sign in to your car maintenance tracker
+            Start tracking your car maintenance today
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit(onSubmit)}>
@@ -70,6 +72,19 @@ export default function LoginPage() {
                 {error}
               </div>
             )}
+            <div className="space-y-2">
+              <Label htmlFor="name">Name</Label>
+              <Input
+                id="name"
+                type="text"
+                placeholder="John Doe"
+                {...register("name")}
+                disabled={isLoading}
+              />
+              {errors.name && (
+                <p className="text-sm text-red-600">{errors.name.message}</p>
+              )}
+            </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -98,18 +113,33 @@ export default function LoginPage() {
                 </p>
               )}
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                placeholder="••••••••"
+                {...register("confirmPassword")}
+                disabled={isLoading}
+              />
+              {errors.confirmPassword && (
+                <p className="text-sm text-red-600">
+                  {errors.confirmPassword.message}
+                </p>
+              )}
+            </div>
           </CardContent>
           <CardFooter className="flex flex-col space-y-4">
             <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? "Signing in..." : "Sign In"}
+              {isLoading ? "Creating account..." : "Create Account"}
             </Button>
             <p className="text-sm text-center text-muted-foreground">
-              Don&apos;t have an account?{" "}
+              Already have an account?{" "}
               <Link
-                href="/register"
+                href="/"
                 className="text-primary hover:underline font-medium"
               >
-                Sign up
+                Sign in
               </Link>
             </p>
           </CardFooter>
