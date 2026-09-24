@@ -155,6 +155,22 @@ export const modificationFiles = pgTable("modification_files", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const reminders = pgTable("reminders", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  vehicleId: uuid("vehicle_id")
+    .references(() => vehicles.id, { onDelete: "cascade" })
+    .notNull(),
+  title: varchar("title", { length: 200 }).notNull(),
+  type: varchar("type", { length: 20 }).notNull(), // 'time' or 'mileage'
+  dueDate: timestamp("due_date"),
+  dueMileage: integer("due_mileage"),
+  notes: text("notes"),
+  isCompleted: boolean("is_completed").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+//  --- RELATIONS ---
+
 export const maintenanceLogsRelations = relations(
   maintenanceLogs,
   ({ many, one }) => ({
@@ -211,3 +227,10 @@ export const modificationFilesRelations = relations(
     }),
   }),
 );
+
+export const remindersRelations = relations(reminders, ({ one }) => ({
+  vehicle: one(vehicles, {
+    fields: [reminders.vehicleId],
+    references: [vehicles.id],
+  }),
+}));

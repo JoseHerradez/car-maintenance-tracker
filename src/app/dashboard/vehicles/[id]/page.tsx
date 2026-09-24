@@ -4,6 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AddFuelDialog } from "@/components/vehicles/add-fuel-dialog";
 import { AddMaintenanceDialog } from "@/components/vehicles/add-maintenance-dialog";
 import { AddModificationDialog } from "@/components/vehicles/add-modification-dialog";
+import { AddReminderDialog } from "@/components/vehicles/add-reminder-dialog";
 import { DeleteFuelButton } from "@/components/vehicles/delete-fuel-button";
 import { DeleteMaintenanceButton } from "@/components/vehicles/delete-maintenance-button";
 import { DeleteModificationButton } from "@/components/vehicles/delete-modification-button";
@@ -12,6 +13,7 @@ import { EditMaintenanceDialog } from "@/components/vehicles/edit-maintenance-di
 import { EditModificationDialog } from "@/components/vehicles/edit-modification-dialog";
 import { FileList } from "@/components/vehicles/file-list";
 import { FileUpload } from "@/components/vehicles/file-upload";
+import { ReminderList } from "@/components/vehicles/reminder-list";
 import { db } from "@/db";
 import {
   fuelFiles,
@@ -20,12 +22,13 @@ import {
   maintenanceLogs,
   modificationFiles,
   modifications,
+  reminders,
   vehicles,
 } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { format } from "date-fns";
 import { and, desc, eq } from "drizzle-orm";
-import { ArrowLeft, Fuel, Wrench, WrenchIcon } from "lucide-react";
+import { ArrowLeft, Bell, Fuel, Wrench, WrenchIcon } from "lucide-react";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -46,8 +49,8 @@ export default async function VehicleDetailPage({
 
   if (!vehicle) redirect("/dashboard");
 
-  const [maintenance, fuel, mods, mFiles, fFiles, modFiles] = await Promise.all(
-    [
+  const [maintenance, fuel, mods, mFiles, fFiles, modFiles, reminderList] =
+    await Promise.all([
       db
         .select()
         .from(maintenanceLogs)
@@ -66,8 +69,12 @@ export default async function VehicleDetailPage({
       db.select().from(maintenanceFiles),
       db.select().from(fuelFiles),
       db.select().from(modificationFiles),
-    ],
-  );
+      db
+        .select()
+        .from(reminders)
+        .where(eq(reminders.vehicleId, id))
+        .orderBy(desc(reminders.createdAt)),
+    ]);
 
   const totalMaintenanceCost = maintenance.reduce(
     (sum, log) => sum + parseFloat(log.cost || "0"),
@@ -81,6 +88,13 @@ export default async function VehicleDetailPage({
     (sum, mod) => sum + parseFloat(mod.cost || "0"),
     0,
   );
+
+  const currentMileage =
+    fuel.length > 0
+      ? Math.max(...fuel.map((f) => f.mileage))
+      : maintenance.length > 0
+        ? Math.max(...maintenance.map((m) => m.mileage))
+        : undefined;
 
   return (
     <div className="min-h-screen bg-slate-50 p-8">
@@ -97,10 +111,11 @@ export default async function VehicleDetailPage({
           </h1>
           <p className="text-muted-foreground">
             {vehicle.licensePlate} • {vehicle.vin || "No VIN"}
+            {currentMileage && ` • ${currentMileage.toLocaleString()} miles`}
           </p>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
@@ -147,6 +162,23 @@ export default async function VehicleDetailPage({
               </p>
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Active Reminders
+              </CardTitle>
+              <Bell className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {reminderList.filter((r) => !r.isCompleted).length}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {reminderList.length} total
+              </p>
+            </CardContent>
+          </Card>
         </div>
 
         <Tabs defaultValue="maintenance" className="space-y-4">
@@ -154,6 +186,7 @@ export default async function VehicleDetailPage({
             <TabsTrigger value="maintenance">Maintenance</TabsTrigger>
             <TabsTrigger value="fuel">Fuel</TabsTrigger>
             <TabsTrigger value="mods">Modifications</TabsTrigger>
+            <TabsTrigger value="reminders">Reminders</TabsTrigger>
           </TabsList>
 
           <TabsContent value="maintenance" className="space-y-4">
@@ -378,6 +411,17 @@ export default async function VehicleDetailPage({
                 })}
               </div>
             )}
+          </TabsContent>
+
+          <TabsContent value="reminders" className="space-y-4">
+            <div className="flex justify-end">
+              <AddReminderDialog vehicleId={id} />
+            </div>
+            <ReminderList
+              reminders={reminderList}
+              vehicleId={id}
+              currentMileage={currentMileage}
+            />
           </TabsContent>
         </Tabs>
       </div>

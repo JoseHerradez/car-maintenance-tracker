@@ -52,7 +52,6 @@ export async function loginUser(formData: FormData) {
       return { error: "Invalid email or password" };
     }
 
-    console.log("result", result);
     return { success: true };
   } catch (error) {
     console.error("Login error:", error);
