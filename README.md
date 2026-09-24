@@ -59,6 +59,52 @@ A comprehensive web application for tracking vehicle maintenance, repairs, modif
 - PostgreSQL database (local or cloud)
 - Vercel account (for Blob storage)
 
+### Running the Database Locally with Docker and not Cloud
+
+If you don't have access to a cloud PostgreSQL database (Neon, Supabase, etc.), you can run PostgreSQL locally using Docker:
+
+1. **Start the database**
+
+```bash
+docker compose up -d
+```
+
+2. **Change env.example to .env.local**
+
+3. **Change the PostgreSQL driver to the standard instead of cloud**
+
+```bash
+npm install postgres
+npm uninstall @vercel/postgres
+```
+
+4. **Modify src/db/index.ts**
+
+Delete what's there and change for
+
+```typescript
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
+import * as schema from "@/db/schema";
+
+const connectionString = process.env.DATABASE_URL!;
+
+// Use singleton pattern to avoid connection issues in development
+const globalForDb = globalThis as unknown as {
+  conn: postgres.Sql | undefined;
+};
+
+const conn = globalForDb.conn ?? postgres(connectionString);
+
+if (process.env.NODE_ENV !== "production") {
+  globalForDb.conn = conn;
+}
+
+export const db = drizzle(conn, { schema });
+```
+
+Then follow the rest of instructions as normal
+
 ### Installation
 
 1. **Clone the repository**
