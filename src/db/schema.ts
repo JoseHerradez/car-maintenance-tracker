@@ -75,6 +75,8 @@ export const vehicles = pgTable("vehicles", {
   licensePlate: varchar("license_plate", { length: 20 }),
   currentMileage: integer("current_mileage").default(0),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  purchasePrice: integer("purchase_price"),
+  purchaseDate: timestamp("purchase_date"),
 });
 
 export const maintenanceLogs = pgTable("maintenance_logs", {
@@ -99,5 +101,19 @@ export const fuelLogs = pgTable("fuel_logs", {
   mileage: integer("mileage").notNull(),
   gallons: numeric("gallons", { precision: 10, scale: 2 }).notNull(),
   totalCost: numeric("total_cost", { precision: 10, scale: 2 }).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const modifications = pgTable("modifications", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  vehicleId: uuid("vehicle_id")
+    .references(() => vehicles.id, { onDelete: "cascade" })
+    .notNull(),
+  name: varchar("name", { length: 200 }).notNull(),
+  category: varchar("category", { length: 100 }).notNull(), // e.g., "Performance", "Aesthetic", "Interior"
+  brand: varchar("brand", { length: 100 }),
+  cost: numeric("cost", { precision: 10, scale: 2 }),
+  installedDate: timestamp("installed_date").notNull(),
+  notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

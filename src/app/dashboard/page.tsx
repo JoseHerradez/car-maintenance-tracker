@@ -1,5 +1,6 @@
 import { logoutUser } from "@/app/actions/auth";
 import { Button } from "@/components/ui/button";
+import { VehicleGarage } from "@/components/vehicles/vehicle-garage";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -15,7 +16,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 p-8">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-6xl mx-auto">
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold">Dashboard</h1>
@@ -38,10 +39,7 @@ export default async function DashboardPage() {
         </div>
 
         <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-xl font-semibold mb-4">Your Garage</h2>
-          <p className="text-muted-foreground">
-            Vehicle management features coming in Step 4...
-          </p>
+          <VehicleGarage userId={session.user.id} />
         </div>
       </div>
     </div>

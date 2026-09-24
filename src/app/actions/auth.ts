@@ -1,8 +1,8 @@
 "use server";
 
 import { auth } from "@/lib/auth";
+import { loginSchema, registerSchema } from "@/lib/validations/auth";
 import { headers } from "next/headers";
-import { registerSchema, loginSchema } from "@/lib/validations/auth";
 
 export async function registerUser(formData: FormData) {
   try {
