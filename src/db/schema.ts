@@ -1,12 +1,13 @@
+import { relations } from "drizzle-orm";
 import {
+  boolean,
+  integer,
+  numeric,
   pgTable,
+  text,
+  timestamp,
   uuid,
   varchar,
-  integer,
-  timestamp,
-  text,
-  numeric,
-  boolean,
 } from "drizzle-orm/pg-core";
 
 // --- BETTER-AUTH TABLES ---
@@ -117,3 +118,96 @@ export const modifications = pgTable("modifications", {
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+
+export const maintenanceFiles = pgTable("maintenance_files", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  maintenanceLogId: uuid("maintenance_log_id")
+    .references(() => maintenanceLogs.id, { onDelete: "cascade" })
+    .notNull(),
+  fileName: varchar("file_name", { length: 255 }).notNull(),
+  fileUrl: text("file_url").notNull(),
+  fileType: varchar("file_type", { length: 100 }).notNull(),
+  fileSize: integer("file_size").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const fuelFiles = pgTable("fuel_files", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  fuelLogId: uuid("fuel_log_id")
+    .references(() => fuelLogs.id, { onDelete: "cascade" })
+    .notNull(),
+  fileName: varchar("file_name", { length: 255 }).notNull(),
+  fileUrl: text("file_url").notNull(),
+  fileType: varchar("file_type", { length: 100 }).notNull(),
+  fileSize: integer("file_size").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const modificationFiles = pgTable("modification_files", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  modificationId: uuid("modification_id")
+    .references(() => modifications.id, { onDelete: "cascade" })
+    .notNull(),
+  fileName: varchar("file_name", { length: 255 }).notNull(),
+  fileUrl: text("file_url").notNull(),
+  fileType: varchar("file_type", { length: 100 }).notNull(),
+  fileSize: integer("file_size").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const maintenanceLogsRelations = relations(
+  maintenanceLogs,
+  ({ many, one }) => ({
+    vehicle: one(vehicles, {
+      fields: [maintenanceLogs.vehicleId],
+      references: [vehicles.id],
+    }),
+    files: many(maintenanceFiles),
+  }),
+);
+
+export const maintenanceFilesRelations = relations(
+  maintenanceFiles,
+  ({ one }) => ({
+    maintenanceLog: one(maintenanceLogs, {
+      fields: [maintenanceFiles.maintenanceLogId],
+      references: [maintenanceLogs.id],
+    }),
+  }),
+);
+
+export const fuelLogsRelations = relations(fuelLogs, ({ many, one }) => ({
+  vehicle: one(vehicles, {
+    fields: [fuelLogs.vehicleId],
+    references: [vehicles.id],
+  }),
+  files: many(fuelFiles),
+}));
+
+export const fuelFilesRelations = relations(fuelFiles, ({ one }) => ({
+  fuelLog: one(fuelLogs, {
+    fields: [fuelFiles.fuelLogId],
+    references: [fuelLogs.id],
+  }),
+}));
+
+export const modificationsRelations = relations(
+  modifications,
+  ({ many, one }) => ({
+    vehicle: one(vehicles, {
+      fields: [modifications.vehicleId],
+      references: [vehicles.id],
+    }),
+    files: many(modificationFiles),
+  }),
+);
+
+export const modificationFilesRelations = relations(
+  modificationFiles,
+  ({ one }) => ({
+    modification: one(modifications, {
+      fields: [modificationFiles.modificationId],
+      references: [modifications.id],
+    }),
+  }),
+);

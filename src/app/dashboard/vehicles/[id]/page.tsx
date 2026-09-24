@@ -10,10 +10,15 @@ import { DeleteModificationButton } from "@/components/vehicles/delete-modificat
 import { EditFuelDialog } from "@/components/vehicles/edit-fuel-dialog";
 import { EditMaintenanceDialog } from "@/components/vehicles/edit-maintenance-dialog";
 import { EditModificationDialog } from "@/components/vehicles/edit-modification-dialog";
+import { FileList } from "@/components/vehicles/file-list";
+import { FileUpload } from "@/components/vehicles/file-upload";
 import { db } from "@/db";
 import {
+  fuelFiles,
   fuelLogs,
+  maintenanceFiles,
   maintenanceLogs,
+  modificationFiles,
   modifications,
   vehicles,
 } from "@/db/schema";
@@ -41,23 +46,28 @@ export default async function VehicleDetailPage({
 
   if (!vehicle) redirect("/dashboard");
 
-  const [maintenance, fuel, mods] = await Promise.all([
-    db
-      .select()
-      .from(maintenanceLogs)
-      .where(eq(maintenanceLogs.vehicleId, id))
-      .orderBy(desc(maintenanceLogs.date)),
-    db
-      .select()
-      .from(fuelLogs)
-      .where(eq(fuelLogs.vehicleId, id))
-      .orderBy(desc(fuelLogs.date)),
-    db
-      .select()
-      .from(modifications)
-      .where(eq(modifications.vehicleId, id))
-      .orderBy(desc(modifications.installedDate)),
-  ]);
+  const [maintenance, fuel, mods, mFiles, fFiles, modFiles] = await Promise.all(
+    [
+      db
+        .select()
+        .from(maintenanceLogs)
+        .where(eq(maintenanceLogs.vehicleId, id))
+        .orderBy(desc(maintenanceLogs.date)),
+      db
+        .select()
+        .from(fuelLogs)
+        .where(eq(fuelLogs.vehicleId, id))
+        .orderBy(desc(fuelLogs.date)),
+      db
+        .select()
+        .from(modifications)
+        .where(eq(modifications.vehicleId, id))
+        .orderBy(desc(modifications.installedDate)),
+      db.select().from(maintenanceFiles),
+      db.select().from(fuelFiles),
+      db.select().from(modificationFiles),
+    ],
+  );
 
   const totalMaintenanceCost = maintenance.reduce(
     (sum, log) => sum + parseFloat(log.cost || "0"),
@@ -158,47 +168,68 @@ export default async function VehicleDetailPage({
               </Card>
             ) : (
               <div className="space-y-2">
-                {maintenance.map((log) => (
-                  <Card key={log.id}>
-                    <CardContent className="py-4 flex justify-between items-start">
-                      <div className="flex-1">
-                        <p className="font-semibold">{log.serviceType}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {format(log.date, "MMM d, yyyy")} •{" "}
-                          {log.mileage.toLocaleString()} mi
-                        </p>
-                        {log.notes && (
-                          <p className="text-sm text-muted-foreground mt-1">
-                            {log.notes}
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex items-start gap-2">
-                        {log.cost && (
-                          <p className="font-semibold mr-4">
-                            ${parseFloat(log.cost).toFixed(2)}
-                          </p>
-                        )}
-                        <EditMaintenanceDialog
+                {maintenance.map((log) => {
+                  const logFiles = mFiles.filter(
+                    (f) => f.maintenanceLogId === log.id,
+                  );
+                  return (
+                    <Card key={log.id}>
+                      <CardContent className="py-4">
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <p className="font-semibold">{log.serviceType}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {format(log.date, "MMM d, yyyy")} •{" "}
+                              {log.mileage.toLocaleString()} mi
+                            </p>
+                            {log.notes && (
+                              <p className="text-sm text-muted-foreground mt-1">
+                                {log.notes}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex items-start gap-2">
+                            {log.cost && (
+                              <p className="font-semibold mr-4">
+                                ${parseFloat(log.cost).toFixed(2)}
+                              </p>
+                            )}
+                            <EditMaintenanceDialog
+                              vehicleId={id}
+                              log={{
+                                id: log.id,
+                                serviceType: log.serviceType,
+                                date: log.date,
+                                mileage: log.mileage,
+                                cost: log.cost
+                                  ? parseFloat(log.cost)
+                                  : undefined,
+                                notes: log.notes || undefined,
+                              }}
+                            />
+                            <DeleteMaintenanceButton
+                              logId={log.id}
+                              vehicleId={id}
+                              serviceType={log.serviceType}
+                            />
+                          </div>
+                        </div>
+                        <div className="mt-3 flex items-center gap-2">
+                          <FileUpload
+                            logId={log.id}
+                            vehicleId={id}
+                            type="maintenance"
+                          />
+                        </div>
+                        <FileList
+                          files={logFiles}
                           vehicleId={id}
-                          log={{
-                            id: log.id,
-                            serviceType: log.serviceType,
-                            date: log.date,
-                            mileage: log.mileage,
-                            cost: log.cost ? parseFloat(log.cost) : undefined,
-                            notes: log.notes || undefined,
-                          }}
+                          type="maintenance"
                         />
-                        <DeleteMaintenanceButton
-                          logId={log.id}
-                          vehicleId={id}
-                          serviceType={log.serviceType}
-                        />
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             )}
           </TabsContent>
@@ -215,40 +246,54 @@ export default async function VehicleDetailPage({
               </Card>
             ) : (
               <div className="space-y-2">
-                {fuel.map((log) => (
-                  <Card key={log.id}>
-                    <CardContent className="py-4 flex justify-between items-start">
-                      <div className="flex-1">
-                        <p className="font-semibold">
-                          {log.mileage.toLocaleString()} miles
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {format(log.date, "MMM d, yyyy")} • {log.gallons} gal
-                        </p>
-                      </div>
-                      <div className="flex items-start gap-2">
-                        <p className="font-semibold mr-4">
-                          ${parseFloat(log.totalCost).toFixed(2)}
-                        </p>
-                        <EditFuelDialog
-                          vehicleId={id}
-                          log={{
-                            id: log.id,
-                            date: log.date,
-                            mileage: log.mileage,
-                            gallons: parseFloat(log.gallons),
-                            totalCost: parseFloat(log.totalCost),
-                          }}
-                        />
-                        <DeleteFuelButton
-                          logId={log.id}
-                          vehicleId={id}
-                          mileage={log.mileage}
-                        />
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                {fuel.map((log) => {
+                  const logFiles = fFiles.filter((f) => f.fuelLogId === log.id);
+                  return (
+                    <Card key={log.id}>
+                      <CardContent className="py-4">
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <p className="font-semibold">
+                              {log.mileage.toLocaleString()} miles
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              {format(log.date, "MMM d, yyyy")} • {log.gallons}{" "}
+                              gal
+                            </p>
+                          </div>
+                          <div className="flex items-start gap-2">
+                            <p className="font-semibold mr-4">
+                              ${parseFloat(log.totalCost).toFixed(2)}
+                            </p>
+                            <EditFuelDialog
+                              vehicleId={id}
+                              log={{
+                                id: log.id,
+                                date: log.date,
+                                mileage: log.mileage,
+                                gallons: parseFloat(log.gallons),
+                                totalCost: parseFloat(log.totalCost),
+                              }}
+                            />
+                            <DeleteFuelButton
+                              logId={log.id}
+                              vehicleId={id}
+                              mileage={log.mileage}
+                            />
+                          </div>
+                        </div>
+                        <div className="mt-3 flex items-center gap-2">
+                          <FileUpload
+                            logId={log.id}
+                            vehicleId={id}
+                            type="fuel"
+                          />
+                        </div>
+                        <FileList files={logFiles} vehicleId={id} type="fuel" />
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             )}
           </TabsContent>
@@ -265,50 +310,72 @@ export default async function VehicleDetailPage({
               </Card>
             ) : (
               <div className="space-y-2">
-                {mods.map((mod) => (
-                  <Card key={mod.id}>
-                    <CardContent className="py-4 flex justify-between items-start">
-                      <div className="flex-1">
-                        <p className="font-semibold">{mod.name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {mod.category} {mod.brand ? `• ${mod.brand}` : ""}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          Installed {format(mod.installedDate, "MMM d, yyyy")}
-                        </p>
-                        {mod.notes && (
-                          <p className="text-sm text-muted-foreground mt-1">
-                            {mod.notes}
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex items-start gap-2">
-                        {mod.cost && (
-                          <p className="font-semibold mr-4">
-                            ${parseFloat(mod.cost).toFixed(2)}
-                          </p>
-                        )}
-                        <EditModificationDialog
+                {mods.map((mod) => {
+                  const modFilesList = modFiles.filter(
+                    (f) => f.modificationId === mod.id,
+                  );
+                  return (
+                    <Card key={mod.id}>
+                      <CardContent className="py-4">
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <p className="font-semibold">{mod.name}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {mod.category} {mod.brand ? `• ${mod.brand}` : ""}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              Installed{" "}
+                              {format(mod.installedDate, "MMM d, yyyy")}
+                            </p>
+                            {mod.notes && (
+                              <p className="text-sm text-muted-foreground mt-1">
+                                {mod.notes}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex items-start gap-2">
+                            {mod.cost && (
+                              <p className="font-semibold mr-4">
+                                ${parseFloat(mod.cost).toFixed(2)}
+                              </p>
+                            )}
+                            <EditModificationDialog
+                              vehicleId={id}
+                              mod={{
+                                id: mod.id,
+                                name: mod.name,
+                                category: mod.category,
+                                brand: mod.brand || undefined,
+                                cost: mod.cost
+                                  ? parseFloat(mod.cost)
+                                  : undefined,
+                                installedDate: mod.installedDate,
+                                notes: mod.notes || undefined,
+                              }}
+                            />
+                            <DeleteModificationButton
+                              modId={mod.id}
+                              vehicleId={id}
+                              name={mod.name}
+                            />
+                          </div>
+                        </div>
+                        <div className="mt-3 flex items-center gap-2">
+                          <FileUpload
+                            logId={mod.id}
+                            vehicleId={id}
+                            type="modification"
+                          />
+                        </div>
+                        <FileList
+                          files={modFilesList}
                           vehicleId={id}
-                          mod={{
-                            id: mod.id,
-                            name: mod.name,
-                            category: mod.category,
-                            brand: mod.brand || undefined,
-                            cost: mod.cost ? parseFloat(mod.cost) : undefined,
-                            installedDate: mod.installedDate,
-                            notes: mod.notes || undefined,
-                          }}
+                          type="modification"
                         />
-                        <DeleteModificationButton
-                          modId={mod.id}
-                          vehicleId={id}
-                          name={mod.name}
-                        />
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             )}
           </TabsContent>
